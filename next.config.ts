@@ -30,7 +30,10 @@ const nextConfig: NextConfig = {
     // Fewer size variants → fewer images to encode and cache
     deviceSizes: [384, 640, 828, 1080, 1280, 1920],
     imageSizes: [64, 128, 176, 256],
-    remotePatterns: [new URL("https://dazzle.sgp1.cdn.digitaloceanspaces.com/**")],
+    remotePatterns: [
+      new URL("https://dazzle.sgp1.cdn.digitaloceanspaces.com/**"),
+      new URL("https://dzl.sgp1.cdn.digitaloceanspaces.com/**"),
+    ],
   },
   turbopack: {
     rules: {
