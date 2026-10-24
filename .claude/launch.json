@@ -1,0 +1,8 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "dazzle-prod", "runtimeExecutable": "npm", "runtimeArgs": ["run", "start", "--", "-p", "3010"], "port": 3010 },
+    { "name": "dazzle-prod-nogzip", "runtimeExecutable": "npm", "runtimeArgs": ["run", "start", "--", "-p", "3010"], "port": 3010, "env": { "DISABLE_NEXT_COMPRESSION": "1" } },
+    { "name": "dazzle-dev", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3000 }
+  ]
+}
