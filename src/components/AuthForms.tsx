@@ -35,11 +35,13 @@ const UserIcon = ({ size = 17 }: { size?: number }) => (
   </svg>
 );
 
-// ─── Auth API helper ───────────────────────────────────────────────────────────
-const AUTH_API = (process.env.NEXT_PUBLIC_AUTH_API_URL ?? "https://apix.bigpoint.com.bd").replace(/\/$/, "");
+// ─── Auth API proxy ────────────────────────────────────────────────────────────
+// All requests go through /api/auth/* (Next.js proxy) so the upstream URL
+// is never visible in the browser's Network tab.
+const AUTH_PROXY = "/api/auth";
 
 async function authPost<T>(endpoint: string, body: Record<string, string>): Promise<T> {
-  const res = await fetch(`${AUTH_API}/${endpoint}`, {
+  const res = await fetch(`${AUTH_PROXY}/${endpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -103,7 +105,8 @@ function saveTokens(token: string, apiKey: string, userName?: string) {
 async function fetchAndCacheProfile(token: string, apiKey: string) {
   try {
     const authHeader = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
-    const res = await fetch(`${AUTH_API}/user-profile`, {
+    const res = await fetch(`/api/auth/user-profile`, {
+      method: "GET",
       headers: { "Content-Type": "application/json", "X-API-Key": apiKey, Authorization: authHeader },
       signal: AbortSignal.timeout(8_000),
     });
@@ -353,12 +356,11 @@ function MobileOtpModal({ onClose, next = "/" }: MobileOtpModalProps) {
   const [otp, setOtp] = useState("");
   const [otpError, setOtpError] = useState("");
 
-  // Profile step state (name / email / password)
+  // Profile step state (name / email / address)
   const [profileName, setProfileName] = useState("");
   const [profileEmail, setProfileEmail] = useState("");
-  const [profilePassword, setProfilePassword] = useState("");
-  const [showProfilePwd, setShowProfilePwd] = useState(false);
-  const [profileErrors, setProfileErrors] = useState<{ name?: string; email?: string; password?: string }>({});
+  const [profileAddress, setProfileAddress] = useState("");
+  const [profileErrors, setProfileErrors] = useState<{ name?: string; email?: string; address?: string }>({});
   const [submittingProfile, setSubmittingProfile] = useState(false);
 
   const [sendingOtp, setSendingOtp] = useState(false);
@@ -417,30 +419,29 @@ function MobileOtpModal({ onClose, next = "/" }: MobileOtpModalProps) {
     setGlobalError("");
     setSendingOtp(true);
     try {
-      const res = await authPost<OtpSendResponse>("login-mobile-otp", { mobile });
+      const res = await authPost<OtpSendResponse>("user-request-otp", { mobile });
       if (res.statusCode === 200) {
         setSentMobile(mobile);
         setStep("otp");
         startTimer();
+      } else if (res.statusCode === 429) {
+        // Active OTP / rate limit — still go to OTP step
+        setSentMobile(mobile);
+        setStep("otp");
+        startTimer();
+        setGlobalError(res.message);
       } else {
         setGlobalError(res.message || "Failed to send OTP.");
       }
     } catch (err) {
       const parsed = parseApiError(err);
-      // "User not found" → new user, but still go through OTP step
-      // (the OTP verify will handle new vs existing user)
-      const msg = (parsed.message ?? "").toLowerCase();
-      const isNewUser =
-        msg.includes("not found") ||
-        msg.includes("no user") ||
-        msg.includes("user not") ||
-        (parsed as { statusCode?: number }).statusCode === 404;
-      if (isNewUser) {
-        // Mark as new user so OTP verify knows to show profile form after
+      const code = (parsed as { statusCode?: number }).statusCode;
+      if (code === 429) {
+        // Active OTP already sent — still allow user to enter it
         setSentMobile(mobile);
-        setIsNewUser(true);
         setStep("otp");
         startTimer();
+        setGlobalError(parsed.message);
       } else if (parsed.errors?.length) {
         setMobileError(parsed.errors.join(" "));
       } else {
@@ -458,22 +459,27 @@ function MobileOtpModal({ onClose, next = "/" }: MobileOtpModalProps) {
     setGlobalError("");
     setVerifyingOtp(true);
     try {
-      const res = await authPost<OtpVerifyResponse>("login-with-mobile", { mobile: sentMobile, otp });
-      if (res.statusCode === 200 && res.data) {
-        const token = res.data.Authorization || res.data.authorization || "";
-        const apiKey = res.data["x-api-key"];
-        saveTokens(token, apiKey, sentMobile);
-        if (isNewUser) {
-          // New user — show profile completion form
+      const res = await authPost<OtpVerifyResponse & { userExist?: boolean }>("user-verify-otp", { mobile: sentMobile, otp });
+      if (res.statusCode === 200) {
+        if (res.userExist === false) {
+          // New user → show registration form (keep otp in state for /user-registration-otp)
+          setIsNewUser(true);
           setStep("profile");
-        } else {
-          // Existing user — fetch real name + avatar then redirect
+          return;
+        }
+        // Existing user — tokens in data
+        if (res.data && res.data["x-api-key"]) {
+          const token = res.data.Authorization || res.data.authorization || "";
+          const apiKey = res.data["x-api-key"];
+          saveTokens(token, apiKey, sentMobile);
           void fetchAndCacheProfile(token, apiKey);
           close();
           router.push(next);
+        } else {
+          setOtpError(res.message || "OTP verification failed.");
         }
       } else {
-        setOtpError(res.message || "OTP verification failed.");
+        setOtpError(res.message || "Invalid OTP.");
       }
     } catch (err) {
       const parsed = parseApiError(err);
@@ -491,21 +497,53 @@ function MobileOtpModal({ onClose, next = "/" }: MobileOtpModalProps) {
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs: typeof profileErrors = {};
-    if (profileName.trim().length < 2) errs.name = "Please enter your name.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(profileEmail)) errs.email = "Enter a valid email address.";
-    if (profilePassword.length < 8) errs.password = "Use at least 8 characters.";
+    if (profileName.trim().length < 2) errs.name = "Full name is required.";
     if (Object.keys(errs).length) { setProfileErrors(errs); return; }
-
     setProfileErrors({});
     setGlobalError("");
     setSubmittingProfile(true);
-    // TODO: call your profile-complete / register API here
-    // For now just close and redirect
-    setTimeout(() => {
+    try {
+      const payload: Record<string, string> = {
+        mobile: sentMobile,
+        otp,
+        userFullName: profileName.trim(),
+      };
+      if (profileEmail.trim()) payload.email = profileEmail.trim();
+      if (profileAddress.trim()) payload.address = profileAddress.trim();
+
+      const res = await authPost<{
+        statusCode: number; status: string; message: string;
+        data?: { "x-api-key": string; Authorization: string; userFullName?: string };
+        errors?: string[];
+      }>("user-registration-otp", payload);
+
+      if (res.statusCode === 200 && res.data) {
+        const token = res.data.Authorization;
+        const apiKey = res.data["x-api-key"];
+        saveTokens(token, apiKey, res.data.userFullName ?? profileName.trim());
+        void fetchAndCacheProfile(token, apiKey);
+        close();
+        router.push(next);
+      } else {
+        setGlobalError(res.message || "Registration failed.");
+      }
+    } catch (err) {
+      const parsed = parseApiError(err);
+      if (parsed.errors?.length) {
+        const errs: typeof profileErrors = {};
+        parsed.errors.forEach((e) => {
+          const l = e.toLowerCase();
+          if (l.includes("userfullname") || l.includes("name")) errs.name = e;
+          else if (l.includes("email")) errs.email = e;
+        });
+        if (Object.keys(errs).length) setProfileErrors(errs);
+        else setGlobalError(parsed.errors.join(" "));
+      } else {
+        setGlobalError(parsed.message);
+      }
+    } finally {
       setSubmittingProfile(false);
-      onClose();
-      router.push(next);
-    }, 600);
+    }
   };
 
   // Step label helpers
@@ -634,34 +672,29 @@ function MobileOtpModal({ onClose, next = "/" }: MobileOtpModalProps) {
         {step === "profile" && (
           <form onSubmit={handleProfileSubmit} noValidate className="space-y-4">
             <label className="block text-sm font-medium text-neutral-700">
-              Full Name
+              Full Name <span className="text-red-500">*</span>
               <input type="text" autoComplete="name" value={profileName}
                 onChange={(e) => setProfileName(e.target.value)}
                 placeholder="Rahim Uddin" className={field} aria-invalid={!!profileErrors.name} />
               {profileErrors.name && <span className="mt-1 block text-xs text-red-600">{profileErrors.name}</span>}
             </label>
             <label className="block text-sm font-medium text-neutral-700">
-              Email Address
+              Email Address{" "}
+              <span className="text-xs font-normal text-neutral-400">(optional)</span>
               <input type="email" autoComplete="email" value={profileEmail}
                 onChange={(e) => setProfileEmail(e.target.value)}
                 placeholder="you@example.com" className={field} aria-invalid={!!profileErrors.email} />
               {profileErrors.email && <span className="mt-1 block text-xs text-red-600">{profileErrors.email}</span>}
             </label>
             <label className="block text-sm font-medium text-neutral-700">
-              <span className="flex items-center justify-between">
-                Password
-                <button type="button" onClick={() => setShowProfilePwd((s) => !s)}
-                  className="text-xs font-semibold text-neutral-400 hover:text-ink">
-                  {showProfilePwd ? "Hide" : "Show"}
-                </button>
-              </span>
-              <input type={showProfilePwd ? "text" : "password"} autoComplete="new-password"
-                value={profilePassword} onChange={(e) => setProfilePassword(e.target.value)}
-                placeholder="Min. 8 characters" className={field} aria-invalid={!!profileErrors.password} />
-              {profileErrors.password && <span className="mt-1 block text-xs text-red-600">{profileErrors.password}</span>}
+              Address{" "}
+              <span className="text-xs font-normal text-neutral-400">(optional)</span>
+              <input type="text" autoComplete="street-address" value={profileAddress}
+                onChange={(e) => setProfileAddress(e.target.value)}
+                placeholder="Dhaka, Bangladesh" className={field} />
             </label>
             <Submit pending={submittingProfile}>
-              {submittingProfile ? "Saving…" : "Complete Sign Up"}
+              {submittingProfile ? "Creating account…" : "Complete Sign Up"}
             </Submit>
           </form>
         )}
