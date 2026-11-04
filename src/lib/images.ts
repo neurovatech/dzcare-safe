@@ -8,6 +8,8 @@ import phoneInternals from "../../public/img_2.png";
 import laptopParts from "../../public/img_4.png";
 import crackedScreens from "../../public/img_8.png";
 import explodedPhone from "../../public/mobile-2.jpg";
+import bkashPhone from "../../public/bKash.svg";
+import sslPhone from "../../public/ssl.svg";
 
 export const photos = {
   heroDevices,
@@ -18,4 +20,6 @@ export const photos = {
   laptopParts,
   crackedScreens,
   explodedPhone,
+  bkashPhone,
+  sslPhone,
 };

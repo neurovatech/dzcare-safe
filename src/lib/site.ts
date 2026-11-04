@@ -27,10 +27,10 @@ export const site = {
     { days: "Friday", open: "15:00", close: "21:00" },
   ],
   social: {
-    facebook: "https://www.facebook.com/dazzlecare",
-    instagram: "https://www.instagram.com/dazzlecare",
-    youtube: "https://www.youtube.com/@dazzlecare",
-    tiktok: "https://www.tiktok.com/@dazzlecare",
+    facebook: "https://www.facebook.com/dazzlebangladesh",
+    instagram: "https://www.instagram.com/dazzle.com.bd/?hl=en",
+    youtube: "https://www.youtube.com/@DazzleBD",
+    tiktok: "https://www.linkedin.com/company/dazzle-ctg/",
   },
   foundedYear: 2016,
   // Walk-in shops shown for "Direct Shop" bookings. TODO: replace with your real branches.

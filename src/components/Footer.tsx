@@ -3,8 +3,23 @@ import { brands, services } from "@/lib/data";
 import { site, whatsappUrl } from "@/lib/site";
 import Logo from "./Logo";
 import TrackedLink from "./TrackedLink";
-import { ArrowIcon, ClockIcon, PhoneIcon, PinIcon, ShieldIcon, WhatsAppIcon } from "./Icons";
-import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon } from "./SocialIcons";
+import {
+  ArrowIcon,
+  ClockIcon,
+  PhoneIcon,
+  PinIcon,
+  ShieldIcon,
+  WhatsAppIcon,
+} from "./Icons";
+import {
+  FacebookIcon,
+  InstagramIcon,
+  TikTokIcon,
+  YouTubeIcon,
+} from "./SocialIcons";
+import Image from "next/image";
+
+import { photos } from "@/lib/images";
 
 const socials = [
   { name: "Facebook", href: site.social.facebook, Icon: FacebookIcon },
@@ -15,11 +30,23 @@ const socials = [
 
 const payments = ["bKash", "Nagad", "Rocket", "VISA", "Cash"];
 
-function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
+function FooterLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
   return (
     <li>
-      <Link href={href} className="group inline-flex items-center gap-1.5 text-neutral-600 transition-colors hover:text-ink">
-        <span className="h-px w-0 bg-gold transition-all duration-300 group-hover:w-3" aria-hidden="true" />
+      <Link
+        href={href}
+        className="group inline-flex items-center gap-1.5 text-neutral-600 transition-colors hover:text-ink"
+      >
+        <span
+          className="h-px w-0 bg-gold transition-all duration-300 group-hover:w-3"
+          aria-hidden="true"
+        />
         {children}
       </Link>
     </li>
@@ -30,7 +57,10 @@ function ColumnTitle({ children }: { children: React.ReactNode }) {
   return (
     <h2 className="relative pb-3 text-sm font-bold uppercase tracking-wider text-ink">
       {children}
-      <span className="absolute bottom-0 left-0 h-[3px] w-8 rounded-full bg-gradient-to-r from-gold to-gold-light" aria-hidden="true" />
+      <span
+        className="absolute bottom-0 left-0 h-[3px] w-8 rounded-full bg-gradient-to-r from-gold to-gold-light"
+        aria-hidden="true"
+      />
     </h2>
   );
 }
@@ -40,15 +70,25 @@ export default function Footer() {
   return (
     <footer className="relative overflow-hidden bg-gradient-to-b from-cream via-[#fbf3e9] to-sand pb-14 text-neutral-600 md:pb-0">
       {/* soft colour glows */}
-      <div aria-hidden="true" className="glow pointer-events-none absolute -left-32 top-20 h-96 w-96 rounded-full" />
-      <div aria-hidden="true" className="glow pointer-events-none absolute -right-24 bottom-0 h-96 w-96 rounded-full" />
+      <div
+        aria-hidden="true"
+        className="glow pointer-events-none absolute -left-32 top-20 h-96 w-96 rounded-full"
+      />
+      <div
+        aria-hidden="true"
+        className="glow pointer-events-none absolute -right-24 bottom-0 h-96 w-96 rounded-full"
+      />
 
       {/* CTA band */}
       <div className="relative mx-auto max-w-7xl px-4 pt-14 sm:px-6 lg:px-8">
         <div className="flex flex-col items-start justify-between gap-6 rounded-[2rem] bg-gradient-to-r from-gold via-[#e2bd94] to-gold-light p-7 shadow-xl shadow-gold/20 sm:p-9 lg:flex-row lg:items-center">
           <div>
-            <p className="text-2xl font-bold text-ink sm:text-3xl">Need a repair today?</p>
-            <p className="mt-1.5 text-ink/75">Free diagnosis · same-day repair · up to 6 months warranty</p>
+            <p className="text-2xl font-bold text-ink sm:text-3xl">
+              Need a repair today?
+            </p>
+            <p className="mt-1.5 text-ink/75">
+              Free diagnosis · same-day repair · up to 6 months warranty
+            </p>
           </div>
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
             <TrackedLink
@@ -77,10 +117,13 @@ export default function Footer() {
         <div>
           <Logo />
           <p className="mt-4 text-sm leading-6">
-            {site.tagline}. Genuine parts, expert technicians and up to 6 months warranty on every repair.
+            {site.tagline}. Genuine parts, expert technicians and up to 6 months
+            warranty on every repair.
           </p>
 
-          <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-ink">Follow us</p>
+          <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-ink">
+            Follow us
+          </p>
           <ul className="mt-3 flex gap-2.5">
             {socials.map(({ name, href, Icon }) => (
               <li key={name}>
@@ -102,7 +145,9 @@ export default function Footer() {
           <ColumnTitle>Services</ColumnTitle>
           <ul className="mt-5 space-y-2.5 text-sm">
             {services.slice(0, 7).map((s) => (
-              <FooterLink key={s.slug} href={`/services/${s.slug}`}>{s.name}</FooterLink>
+              <FooterLink key={s.slug} href={`/services/${s.slug}`}>
+                {s.name}
+              </FooterLink>
             ))}
           </ul>
         </div>
@@ -111,7 +156,9 @@ export default function Footer() {
           <ColumnTitle>Brands</ColumnTitle>
           <ul className="mt-5 space-y-2.5 text-sm">
             {brands.map((b) => (
-              <FooterLink key={b.slug} href={`/repair/${b.slug}`}>{b.name} Repair</FooterLink>
+              <FooterLink key={b.slug} href={`/repair/${b.slug}`}>
+                {b.name} Repair
+              </FooterLink>
             ))}
           </ul>
         </div>
@@ -123,7 +170,13 @@ export default function Footer() {
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gold/20 text-gold-dark">
                 <PinIcon className="h-4 w-4" />
               </span>
-              <TrackedLink method="map" href={site.mapUrl} target="_blank" rel="noopener" className="pt-1.5 hover:text-ink">
+              <TrackedLink
+                method="map"
+                href={site.mapUrl}
+                target="_blank"
+                rel="noopener"
+                className="pt-1.5 hover:text-ink"
+              >
                 {address.street}, {address.locality} {address.postalCode}
               </TrackedLink>
             </li>
@@ -131,7 +184,12 @@ export default function Footer() {
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gold/20 text-gold-dark">
                 <PhoneIcon className="h-4 w-4" />
               </span>
-              <TrackedLink method="call" trackLabel="footer" href={`tel:${site.phone}`} className="pt-1.5 font-semibold text-ink hover:text-gold-dark">
+              <TrackedLink
+                method="call"
+                trackLabel="footer"
+                href={`tel:${site.phone}`}
+                className="pt-1.5 font-semibold text-ink hover:text-gold-dark"
+              >
                 {site.phoneDisplay}
               </TrackedLink>
             </li>
@@ -142,7 +200,10 @@ export default function Footer() {
               <span className="pt-1.5">
                 {site.hours.map((h) => (
                   <span key={h.days} className="block">
-                    {h.days}: <span className="font-medium text-ink">{h.open}–{h.close}</span>
+                    {h.days}:{" "}
+                    <span className="font-medium text-ink">
+                      {h.open}–{h.close}
+                    </span>
                   </span>
                 ))}
               </span>
@@ -160,19 +221,44 @@ export default function Footer() {
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4 border-t border-black/[.08] py-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-ink">We accept</span>
-            {payments.map((p) => (
+            <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-ink">
+              We accept
+            </span>
+
+            <Image
+              src={photos.bkashPhone}
+              alt="bKash logo"
+              width={100}
+              height={100}
+              className="h-full  m-auto object-contain drop-shadow-xl transition duration-700 ease-out group-hover:-translate-y-2 group-hover:rotate-[-4deg] group-hover:scale-110"
+            />
+            <Image
+              src={photos.sslPhone}
+              alt="SSL logo"
+              width={100}
+              height={100}
+              className="h-full  m-auto object-contain drop-shadow-xl transition duration-700 ease-out group-hover:-translate-y-2 group-hover:rotate-[-4deg] group-hover:scale-110"
+            />
+            {/* {payments.map((p) => (
               <span key={p} className="rounded-lg border border-gold/50 bg-white px-2.5 py-1 text-xs font-bold text-ink">
                 {p}
               </span>
-            ))}
+            ))} */}
           </div>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
             <p>© {site.legalName}. All rights reserved.</p>
-            <Link href="/about" className="hover:text-ink">About</Link>
-            <Link href="/privacy-policy" className="hover:text-ink">Privacy Policy</Link>
-            <Link href="/contact" className="group inline-flex items-center gap-1 font-semibold text-gold-dark hover:text-ink">
-              Contact <ArrowIcon className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+            <Link href="/about" className="hover:text-ink">
+              About
+            </Link>
+            <Link href="/privacy-policy" className="hover:text-ink">
+              Privacy Policy
+            </Link>
+            <Link
+              href="/contact"
+              className="group inline-flex items-center gap-1 font-semibold text-gold-dark hover:text-ink"
+            >
+              Contact{" "}
+              <ArrowIcon className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
             </Link>
           </div>
         </div>

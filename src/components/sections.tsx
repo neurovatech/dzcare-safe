@@ -113,9 +113,9 @@ export async function CategoryGrid({ limit }: { limit?: number }) {
                   <Image
                     src={c.image}
                     alt={`${c.name} repair`}
-                    width={220}
-                    height={220}
-                    className="h-full w-full object-contain drop-shadow-xl transition duration-700 ease-out group-hover:-translate-y-2 group-hover:rotate-[-4deg] group-hover:scale-110"
+                    width={150}
+                    height={150}
+                    className="h-full w-[70%] m-auto object-contain drop-shadow-xl transition duration-700 ease-out group-hover:-translate-y-2 group-hover:rotate-[-4deg] group-hover:scale-110"
                   />
                 </span>
                 <span className="mt-3 text-base font-semibold text-ink">{c.name}</span>
