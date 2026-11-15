@@ -3,7 +3,7 @@ import { getCategories } from "./api";
 import { brands, services } from "./data";
 import { SERVICE_KEYWORDS, type SearchIndex } from "./search";
 
-/** Builds the search index from the catalogue + API categories (cached). */
+/** Builds the search index from the catalogue + API categories. */
 export async function getSearchIndex(): Promise<SearchIndex> {
   "use cache";
   cacheLife("api");

@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node init && next dev",
+    "build": "node init && next build",
+    "start": "node init && next start",
     "lint": "eslint",
     "postbuild": "node -e \"const fs=require('fs');if(fs.existsSync('.next/standalone')){fs.cpSync('public','.next/standalone/public',{recursive:true});fs.cpSync('.next/static','.next/standalone/.next/static',{recursive:true})}\"",
-    "start:prod": "node .next/standalone/server.js"
+    "start:prod": "node init && node .next/standalone/server.js"
   },
   "dependencies": {
     "next": "16.4.0",

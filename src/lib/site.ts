@@ -10,8 +10,8 @@ export const site = {
   locale: "en_BD",
   // TODO: replace with real contact details
   phone: "+8801700000000",
-  phoneDisplay: "+880 1700-000000",
-  whatsapp: "8801700000000",
+  phoneDisplay: "09638001122",
+  whatsapp: "09638001122",
   email: "support@dazzlecare.com.bd",
   address: {
     street: "Level 4, Shop 4/12, Bashundhara City",
@@ -42,8 +42,8 @@ export const site = {
 export const nav = [
   { href: "/services", label: "Services", icon: "wrench" },
   { href: "/categories", label: "Devices", icon: "grid" },
-  { href: "/repair/iphone", label: "iPhone", icon: "phone" },
-  { href: "/repair/samsung", label: "Samsung", icon: "phone" },
+  // { href: "/repair/iphone", label: "iPhone", icon: "phone" },
+  // { href: "/repair/samsung", label: "Samsung", icon: "phone" },
   { href: "/contact", label: "Contact", icon: "chat" },
 ] as const;
 

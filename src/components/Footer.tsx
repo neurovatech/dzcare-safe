@@ -117,8 +117,7 @@ export default function Footer() {
         <div>
           <Logo />
           <p className="mt-4 text-sm leading-6">
-            {site.tagline}. Genuine parts, expert technicians and up to 6 months
-            warranty on every repair.
+            {site.tagline}. Genuine parts, expert technicians every repair.
           </p>
 
           <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-ink">
@@ -156,7 +155,8 @@ export default function Footer() {
           <ColumnTitle>Brands</ColumnTitle>
           <ul className="mt-5 space-y-2.5 text-sm">
             {brands.map((b) => (
-              <FooterLink key={b.slug} href={`/repair/${b.slug}`}>
+              // <FooterLink key={b.slug} href={`/repair/${b.slug}`}>
+              <FooterLink key={b.slug} href={`/categories`}>
                 {b.name} Repair
               </FooterLink>
             ))}
@@ -193,7 +193,7 @@ export default function Footer() {
                 {site.phoneDisplay}
               </TrackedLink>
             </li>
-            <li className="flex gap-3">
+            {/* <li className="flex gap-3">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gold/20 text-gold-dark">
                 <ClockIcon className="h-4 w-4" />
               </span>
@@ -207,7 +207,7 @@ export default function Footer() {
                   </span>
                 ))}
               </span>
-            </li>
+            </li> */}
             <li className="flex gap-3">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gold/20 text-gold-dark">
                 <ShieldIcon className="h-4 w-4" />

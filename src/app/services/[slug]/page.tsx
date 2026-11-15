@@ -65,7 +65,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
         title={`${service.name} in Dhaka`}
         text={service.intro}
       >
-        <ul className="mt-8 flex flex-wrap gap-3 text-sm">
+        {/* <ul className="mt-8 flex flex-wrap gap-3 text-sm">
           <li className="inline-flex items-center gap-2 rounded-full border border-black/10 px-4 py-2 text-neutral-700">
             <ClockIcon className="h-4 w-4 text-gold-dark" /> {service.time}
           </li>
@@ -75,7 +75,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
           <li className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-4 py-2 text-gold-dark">
             From {formatTaka(lowest)}
           </li>
-        </ul>
+        </ul> */}
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <ButtonLink href={`/book?service=${service.slug}`}>Book {service.name}</ButtonLink>
           <ButtonLink href="/contact" variant="outline">Talk to a technician</ButtonLink>
@@ -111,7 +111,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
         </Container>
       </section>
 
-      <section className="bg-white py-16 sm:py-20">
+      {/* <section className="bg-white py-16 sm:py-20">
         <Container>
           <SectionHeading
             eyebrow="Price list"
@@ -161,7 +161,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
             </table>
           </div>
         </Container>
-      </section>
+      </section> */}
 
       <Process />
 
@@ -170,9 +170,9 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
           <div>
             <SectionHeading eyebrow="FAQ" title={`${service.name} FAQ`} />
             <div className="mt-8 hidden lg:block">
-              <span className="grid h-16 w-16 place-items-center rounded-2xl bg-gold/10 text-gold-dark">
+              {/* <span className="grid h-16 w-16 place-items-center rounded-2xl bg-gold/10 text-gold-dark">
                 <ServiceIcon name={service.icon} className="h-8 w-8" />
-              </span>
+              </span> */}
             </div>
           </div>
           <Faq items={service.faqs} />

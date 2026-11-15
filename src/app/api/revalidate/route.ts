@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { revalidateTag } from "next/cache";
 
-const TAGS = new Set(["categories", "brands"]);
+const TAGS = new Set(["categories", "categories-child", "brands", "products", "product-variants"]);
 
 const sameSecret = (a: string, b: string) => {
   const x = Buffer.from(a);

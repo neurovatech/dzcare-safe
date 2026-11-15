@@ -1,7 +1,8 @@
+import { NextRequest } from "next/server";
 import { getSearchIndex } from "@/lib/search-index";
 
 // Loaded by the header search the first time it opens, then cached by the browser.
-export async function GET() {
+export async function GET(request: NextRequest) {
   return Response.json(await getSearchIndex(), {
     headers: { "Cache-Control": "public, max-age=300, stale-while-revalidate=3600" },
   });

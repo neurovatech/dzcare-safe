@@ -1,5 +1,4 @@
-import { getCategory } from "@/lib/api";
-import { getCategoryRepairs } from "@/lib/data";
+import { getCategory, getCategoryRepairsFromApi } from "@/lib/api";
 import { ogContentType, ogSize, renderOg } from "@/lib/og";
 
 export { generateStaticParams } from "./page";
@@ -10,8 +9,8 @@ export const contentType = ogContentType;
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const category = await getCategory(slug);
-  const paid = getCategoryRepairs(slug).filter((r) => r.price > 0);
+  const category = await getCategory(slug, { isCare: 1 });
+  const paid = (await getCategoryRepairsFromApi(slug)).filter((r) => r.price > 0);
   return renderOg({
     eyebrow: "Device repair",
     title: `${category?.name ?? "Device"} Repair in Dhaka`,

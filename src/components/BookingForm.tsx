@@ -112,7 +112,7 @@ export default function BookingForm({ brands, services, defaults = {} }: Props) 
       >
         {pending ? "Sending…" : "Book My Repair"}
       </button>
-      <p className="mt-3 text-xs text-neutral-600">We&apos;ll call you within 15 minutes during opening hours. No spam, ever.</p>
+      {/* <p className="mt-3 text-xs text-neutral-600">We&apos;ll call you within 15 minutes during opening hours. No spam, ever.</p> */}
     </form>
   );
 }

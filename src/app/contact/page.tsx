@@ -40,15 +40,15 @@ export default function ContactPage() {
         </TrackedLink>
       ),
     },
-    {
-      icon: <ClockIcon className="h-6 w-6" />,
-      title: "Opening hours",
-      body: site.hours.map((h) => (
-        <span key={h.days} className="block">
-          {h.days}: {h.open}–{h.close}
-        </span>
-      )),
-    },
+    // {
+    //   icon: <ClockIcon className="h-6 w-6" />,
+    //   title: "Opening hours",
+    //   body: site.hours.map((h) => (
+    //     <span key={h.days} className="block">
+    //       {h.days}: {h.open}–{h.close}
+    //     </span>
+    //   )),
+    // },
   ];
 
   return (
@@ -72,7 +72,7 @@ export default function ContactPage() {
           <div className="mt-10 flex flex-col items-start justify-between gap-6 rounded-3xl border border-gold/30 bg-gold/10 p-8 sm:flex-row sm:items-center">
             <div>
               <h2 className="text-2xl font-bold text-ink">Want us to call you?</h2>
-              <p className="mt-2 text-neutral-600">Book online and we&apos;ll call back within 15 minutes.</p>
+              <p className="mt-2 text-neutral-600">Book online and we&apos;ll call back as soon as possible.</p>
             </div>
             <Link href="/book" className="inline-flex h-12 items-center rounded-full bg-gold px-7 font-semibold text-ink hover:bg-gold-light">
               Book a Repair

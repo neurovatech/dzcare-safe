@@ -2,101 +2,54 @@ import { cacheLife, cacheTag } from "next/cache";
 
 const API_URL = (process.env.API_URL ?? "https://apix.bigpoint.com.bd").replace(/\/$/, "");
 
-export type Category = {
-  uuid: string;
-  name: string;
-  slug: string;
-  image: string;
-  isTradeIn: boolean;
+// ---------------------------------------------------------------------------
+// Shared Types
+// ---------------------------------------------------------------------------
+
+export type ApiResponse<T> = {
+  statusCode: number;
+  status: "success" | "error";
+  found?: boolean;
+  message?: string;
+  errors?: string[];
+  count?: number;
+  totalCount?: number;
+  page?: number;
+  limit?: number;
+  totalPages?: number;
+  data: T;
 };
 
-type ApiCategory = {
-  uuid: string;
-  category_name: string;
-  category_slug: string;
-  thumbnail_img: string;
-  is_active: boolean;
-  is_trade_in: boolean;
-};
-
-/** Device categories from the Dazzle Commerce API, cached for an hour. */
-export async function getCategories(): Promise<Category[]> {
-  "use cache";
-  cacheLife("api");
-  cacheTag("categories");
-
-  try {
-    const res = await fetch(`${API_URL}/categories?limit=50`, { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = (await res.json()) as { data?: ApiCategory[] };
-    return (json.data ?? [])
-      .filter((c) => c.is_active && c.thumbnail_img)
-      .map((c) => ({
-        uuid: c.uuid,
-        name: c.category_name,
-        slug: c.category_slug,
-        image: c.thumbnail_img,
-        isTradeIn: c.is_trade_in,
-      }));
-  } catch (err) {
-    console.error("[api] categories", err);
-    return [];
+function buildQueryString(params?: Record<string, unknown>): string {
+  if (!params) return "";
+  const sp = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== "") {
+      sp.set(key, String(value));
+    }
   }
+  const q = sp.toString();
+  return q ? `?${q}` : "";
 }
-
-export async function getCategory(slug: string) {
-  return (await getCategories()).find((c) => c.slug === slug);
-}
-
-export type ApiBrand = { uuid: string; name: string; slug: string; logo: string };
-
-// Brands shown in the logo marquee, in display order.
-const MARQUEE_BRANDS = [
-  "apple", "samsung", "xiaomi", "oppo", "vivo", "realme", "google", "oneplus", "huawei", "honor",
-  "infinix", "tecno", "nokia", "motorola", "asus", "lenovo", "hp", "dell", "sony", "jbl", "anker",
-];
-
-/** Brand logos from the Dazzle Commerce API, cached for a day. */
-export async function getMarqueeBrands(): Promise<ApiBrand[]> {
-  "use cache";
-  cacheLife("api");
-  cacheTag("brands");
-
-  try {
-    const res = await fetch(`${API_URL}/brands?limit=200`, { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = (await res.json()) as {
-      data?: { uuid: string; brand_name: string; brand_slug: string; thumbnail_img: string; is_active: boolean }[];
-    };
-    const all = (json.data ?? []).filter((b) => b.is_active && b.thumbnail_img);
-    return MARQUEE_BRANDS.flatMap((slug) => {
-      const b = all.find((x) => x.brand_slug === slug);
-      return b ? [{ uuid: b.uuid, name: b.brand_name, slug: b.brand_slug, logo: b.thumbnail_img }] : [];
-    });
-  } catch (err) {
-    console.error("[api] brands", err);
-    return [];
-  }
-}
-
-export type CategoryBrand = { slug: string; name: string; logo: string; models: string[] };
-
-type ApiList<T> = { data?: T[]; totalPages?: number };
 
 /**
- * GET with timeout and one retry. When a `deadline` (epoch ms) is given the request
- * never runs past it, so callers stay inside the page-render time limit.
+ * GET with timeout and one retry.
  */
 async function getJson<T>(path: string, opts: { retries?: number; deadline?: number } = {}): Promise<T> {
   const { retries = 1, deadline } = opts;
   const budget = deadline ? Math.min(12_000, deadline - Date.now()) : 12_000;
   if (budget < 1_000) throw new Error(`time budget exhausted ${path}`);
+
   try {
-    const res = await fetch(`${API_URL}${path}`, { signal: AbortSignal.timeout(budget) });
+    const res = await fetch(`${API_URL}${path}`, {
+      signal: AbortSignal.timeout(budget),
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status} ${path}`);
     return (await res.json()) as T;
   } catch (err) {
-    if (retries > 0 && (!deadline || deadline - Date.now() > 2_000)) return getJson<T>(path, { retries: retries - 1, deadline });
+    if (retries > 0 && (!deadline || deadline - Date.now() > 2_000)) {
+      return getJson<T>(path, { retries: retries - 1, deadline });
+    }
     throw err;
   }
 }
@@ -115,135 +68,658 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
   return out;
 }
 
-/** Every active brand with its logo (one request — the API allows limit=1000). */
-async function getAllBrands() {
+// ---------------------------------------------------------------------------
+// Categories API (/categories)
+// ---------------------------------------------------------------------------
+
+export type CategoryQueryParams = {
+  page?: number;
+  limit?: number;
+  tradeIn?: 0 | 1 | "all";
+  isCare?: 0 | 1 | "all";
+};
+
+export type ApiCategoryItem = {
+  uuid: string;
+  category_name: string;
+  category_slug: string;
+  categoryIcon?: string;
+  thumbnail_img: string;
+  is_featured: boolean;
+  is_active: boolean;
+  is_trade_in: boolean;
+};
+
+export type Category = {
+  uuid: string;
+  name: string;
+  slug: string;
+  image: string;
+  icon?: string;
+  isTradeIn: boolean;
+  isCare?: boolean;
+};
+
+/** Raw response for /categories */
+export async function getCategoriesRaw(params?: CategoryQueryParams): Promise<ApiResponse<ApiCategoryItem[]>> {
   "use cache";
-  cacheLife("days");
+  cacheLife("api");
+  cacheTag("categories");
+
+  const queryParams: Record<string, unknown> = {};
+
+  if (params?.page !== undefined) queryParams.page = params.page;
+  if (params?.limit !== undefined) queryParams.limit = params.limit;
+  queryParams.isCare = 1;
+
+  const query = buildQueryString(queryParams);
+  try {
+    return await getJson<ApiResponse<ApiCategoryItem[]>>(`/categories${query}`);
+  } catch (err) {
+    console.error("[api] getCategoriesRaw", err);
+    return {
+      statusCode: 500,
+      status: "error",
+      found: false,
+      count: 0,
+      totalCount: 0,
+      page: params?.page ?? 1,
+      limit: params?.limit ?? 10,
+      totalPages: 0,
+      data: [],
+      message: err instanceof Error ? err.message : "Failed to fetch categories",
+    };
+  }
+}
+
+/** Device categories mapped for application consumption (live from /categories/child?isCare=1). */
+export async function getCategories(params?: CategoryQueryParams): Promise<Category[]> {
+  try {
+    // Step 1: Default to /categories/child?isCare=1
+    const childCats = await getCategoriesWithChild({ isCare: 1 });
+    if (childCats.length > 0) {
+      return childCats.map((c) => ({
+        uuid: c.uuid,
+        name: c.category_name,
+        slug: c.category_slug,
+        image: c.thumbnail_img,
+        icon: c.categoryIcon,
+        isTradeIn: !!c.is_trade_in,
+        isCare: true,
+      }));
+    }
+
+    const raw = await getCategoriesRaw({ limit: 50, ...params });
+    const data = (raw.data ?? []).filter((c) => c.is_active && c.thumbnail_img);
+
+    return data.map((c) => ({
+      uuid: c.uuid,
+      name: c.category_name,
+      slug: c.category_slug,
+      image: c.thumbnail_img,
+      icon: c.categoryIcon,
+      isTradeIn: c.is_trade_in,
+      isCare: c.category_slug === "phones" || c.category_slug === "laptop",
+    }));
+  } catch (err) {
+    console.error("[api] categories", err);
+    return [];
+  }
+}
+
+export async function getCategory(slug: string, params?: CategoryQueryParams) {
+  const direct = (await getCategories(params)).find((c) => c.slug === slug);
+  if (direct) return direct;
+  return (await getCategories({ isCare: "all" })).find((c) => c.slug === slug);
+}
+
+// ---------------------------------------------------------------------------
+// Categories With Child API (/categories/child)
+// ---------------------------------------------------------------------------
+
+export type ApiSubCategoryItem = {
+  uuid: string;
+  sub_category_name: string;
+  sub_category_slug: string;
+  thumbnail_img: string;
+  is_featured: boolean;
+  is_active: boolean;
+};
+
+export type ApiCategoryWithChildItem = {
+  uuid: string;
+  category_name: string;
+  category_slug: string;
+  categoryIcon?: string;
+  thumbnail_img: string;
+  is_featured: boolean;
+  is_active: boolean;
+  is_trade_in?: boolean;
+  child: ApiSubCategoryItem[];
+};
+
+/** Raw response for /categories/child?isCare=1 */
+export async function getCategoriesWithChildRaw(params?: {
+  isCare?: 0 | 1 | "all";
+}): Promise<ApiResponse<ApiCategoryWithChildItem[]>> {
+  "use cache";
+  cacheLife("api");
+  cacheTag("categories-child");
+
+  let query = "";
+  if (params?.isCare === 0 || params?.isCare === 1) {
+    query = `?isCare=${params.isCare}`;
+  } else if (params?.isCare === "all") {
+    query = "";
+  } else {
+    // Default isCare=1 as requested: "api end point /categories/child?isCare=1"
+    query = "?isCare=1";
+  }
+
+  try {
+    return await getJson<ApiResponse<ApiCategoryWithChildItem[]>>(`/categories/child${query}`);
+  } catch (err) {
+    console.error("[api] getCategoriesWithChildRaw", err);
+    return {
+      statusCode: 500,
+      status: "error",
+      found: false,
+      count: 0,
+      data: [],
+      message: err instanceof Error ? err.message : "Failed to fetch categories with child",
+    };
+  }
+}
+
+/** Active categories with their child sub-categories */
+export async function getCategoriesWithChild(params?: {
+  isCare?: 0 | 1 | "all";
+}): Promise<ApiCategoryWithChildItem[]> {
+  const res = await getCategoriesWithChildRaw(params);
+  return (res.data ?? []).filter((c) => c.is_active);
+}
+
+// ---------------------------------------------------------------------------
+// Category Brands API (/categories/{slug}/brands)
+// ---------------------------------------------------------------------------
+
+export type ApiCategoryBrandChild = {
+  uuid: string;
+  brand_name: string;
+  brand_slug: string;
+  thumbnail_img: string;
+  is_featured: boolean;
+  is_active: boolean;
+  is_trade_in?: boolean;
+};
+
+export type ApiCategoryBrandsResponseData = {
+  category: Array<{
+    uuid: string;
+    category_name: string;
+    category_slug: string;
+    categoryIcon?: string;
+    thumbnail_img: string;
+    is_featured: boolean;
+    is_active: boolean;
+    is_trade_in?: boolean;
+    child: ApiCategoryBrandChild[];
+  }>;
+  subCategory?: Array<{
+    uuid: string;
+    sub_category_name: string;
+    sub_category_slug: string;
+    thumbnail_img: string;
+    is_featured: boolean;
+    is_active: boolean;
+    child: ApiCategoryBrandChild[];
+  }>;
+};
+
+/** Raw response for /categories/{slug}/brands?isCare=1 */
+export async function getCategoryBrandsBySlugRaw(
+  slug: string,
+  params?: { isCare?: 0 | 1 }
+): Promise<ApiResponse<ApiCategoryBrandsResponseData>> {
+  "use cache";
+  cacheLife("api");
+  cacheTag("brands", `category-brands-${slug}`);
+
+  const isCare = params?.isCare ?? 1;
+  const query = isCare !== undefined ? `?isCare=${isCare}` : "";
+  try {
+    return await getJson<ApiResponse<ApiCategoryBrandsResponseData>>(
+      `/categories/${encodeURIComponent(slug)}/brands${query}`
+    );
+  } catch (err) {
+    console.error("[api] getCategoryBrandsBySlugRaw", slug, err);
+    return {
+      statusCode: 500,
+      status: "error",
+      found: false,
+      count: 0,
+      data: { category: [], subCategory: [] },
+      message: err instanceof Error ? err.message : `Failed to fetch brands for category ${slug}`,
+    };
+  }
+}
+
+/** Active brands for a specific category (/categories/{slug}/brands?isCare=1) */
+export async function getCategoryBrandsBySlug(
+  slug: string,
+  params?: { isCare?: 0 | 1 }
+): Promise<ApiCategoryBrandChild[]> {
+  const res = await getCategoryBrandsBySlugRaw(slug, params);
+  const catBrands = res.data?.category?.[0]?.child ?? [];
+  return catBrands.filter((b) => b.is_active);
+}
+
+// ---------------------------------------------------------------------------
+// Brands API (/brands)
+// ---------------------------------------------------------------------------
+
+export type BrandQueryParams = {
+  order?: 0 | 1; // 0 = ASC, 1 = DESC
+  page?: number;
+  limit?: number;
+  tradeIn?: 0 | 1;
+  isCare?: 0 | 1;
+};
+
+export type ApiBrandItem = {
+  uuid: string;
+  brand_name: string;
+  brand_slug: string;
+  thumbnail_img: string;
+  is_featured: boolean;
+  is_active: boolean;
+  is_trade_in: boolean;
+};
+
+export type ApiBrand = { uuid: string; name: string; slug: string; logo: string };
+
+/** Raw response for /brands */
+export async function getBrandsRaw(params?: BrandQueryParams): Promise<ApiResponse<ApiBrandItem[]>> {
+  "use cache";
+  cacheLife("api");
   cacheTag("brands");
-  const json = await getJson<ApiList<{ brand_name: string; brand_slug: string; thumbnail_img: string; is_active: boolean }>>(
-    "/brands?order=0&page=1&limit=1000",
-  );
+
+  const query = buildQueryString(params);
+  try {
+    return await getJson<ApiResponse<ApiBrandItem[]>>(`/brands${query}`);
+  } catch (err) {
+    console.error("[api] getBrandsRaw", err);
+    return {
+      statusCode: 500,
+      status: "error",
+      found: false,
+      count: 0,
+      totalCount: 0,
+      page: params?.page ?? 1,
+      limit: params?.limit ?? 10,
+      totalPages: 0,
+      data: [],
+      message: err instanceof Error ? err.message : "Failed to fetch brands",
+    };
+  }
+}
+
+/** Active brands list */
+export async function getBrands(params?: BrandQueryParams): Promise<ApiBrandItem[]> {
+  const res = await getBrandsRaw({ order: 0, isCare: 1, ...params });
+  let data = (res.data ?? []).filter((b) => b.is_active);
+
+  // Fallback if isCare: 1 returned empty and caller didn't explicitly request isCare
+  if (!data.length && params?.isCare === undefined) {
+    const fallback = await getBrandsRaw({ order: 0, ...params });
+    data = (fallback.data ?? []).filter((b) => b.is_active);
+  }
+
+  return data;
+}
+
+// Curated brand order shown in the marquee banner
+const MARQUEE_BRANDS = [
+  "apple", "samsung", "xiaomi", "oppo", "vivo", "realme", "google", "oneplus", "huawei", "honor",
+  "infinix", "tecno", "nokia", "motorola", "asus", "lenovo", "hp", "dell", "sony", "jbl", "anker",
+];
+
+/** Brand logos from the Dazzle Commerce API */
+export async function getMarqueeBrands(): Promise<ApiBrand[]> {
+  try {
+    const raw = await getBrandsRaw({ limit: 200, isCare: 1 });
+    let all = (raw.data ?? []).filter((b) => b.is_active && b.thumbnail_img);
+
+    // If isCare filtered list is small, fallback to general active brands
+    if (all.length < 5) {
+      const fallback = await getBrandsRaw({ limit: 200 });
+      all = (fallback.data ?? []).filter((b) => b.is_active && b.thumbnail_img);
+    }
+
+    return MARQUEE_BRANDS.flatMap((slug) => {
+      const b = all.find((x) => x.brand_slug === slug);
+      return b ? [{ uuid: b.uuid, name: b.brand_name, slug: b.brand_slug, logo: b.thumbnail_img }] : [];
+    });
+  } catch (err) {
+    console.error("[api] brands", err);
+    return [];
+  }
+}
+
+/** Every active brand with its logo */
+export async function getAllBrands(params?: BrandQueryParams) {
+  const json = await getBrandsRaw({ order: 0, page: 1, limit: 1000, ...params });
   return (json.data ?? []).filter((b) => b.is_active);
 }
 
-// "Samsung Galaxy Tab A11 Official" → "Samsung Galaxy Tab A11"
+// ---------------------------------------------------------------------------
+// Products API (/products)
+// ---------------------------------------------------------------------------
+
+export type ProductQueryParams = {
+  page?: number;
+  limit?: number;
+  isSparePart?: 0 | 1;
+  brandSlug?: string;
+  productBadge?: string;
+  categorySlug?: string;
+  subCategorySlug?: string;
+  attributes?: string; // e.g. "black|blue|12/256gb"
+  latest?: 1 | 2; // 1 = Ascending, 2 = Descending
+  discountedPrice?: "low-to-high" | "high-to-low";
+  minDiscountedPrice?: number;
+  maxDiscountedPrice?: number;
+  stockStatus?: number | string;
+  stockAssort?: 0 | 1;
+};
+
+export type ApiProductItem = {
+  productUuid: string;
+  productCode: string;
+  productName: string;
+  productSlug: string;
+  productBadge: string;
+  isTba: boolean;
+  endOfLife: boolean;
+  allowPreOrder: boolean;
+  recognitionBadge: string;
+  stockStatus: string;
+  regularPrice: number;
+  discountedPrice: number;
+  disRate: number;
+  thumbnails: {
+    fileUuid: string;
+    mediaFileUrl: string;
+  } | null;
+};
+
+/** Raw response for /products with filters */
+export async function getProducts(params?: ProductQueryParams): Promise<ApiResponse<ApiProductItem[]>> {
+  "use cache";
+  cacheLife("api");
+  cacheTag("products");
+
+  const sp = new URLSearchParams();
+  if (params?.brandSlug) {
+    sp.set("brandSlug", params.brandSlug);
+  }
+  const isSparePart = params?.isSparePart ?? 1;
+  sp.set("isSparePart", String(isSparePart));
+
+  if (params?.categorySlug) sp.set("categorySlug", params.categorySlug);
+  if (params?.subCategorySlug) sp.set("subCategorySlug", params.subCategorySlug);
+  if (params?.productBadge) sp.set("productBadge", params.productBadge);
+  if (params?.attributes) sp.set("attributes", params.attributes);
+  if (params?.discountedPrice) sp.set("discountedPrice", params.discountedPrice);
+  if (params?.minDiscountedPrice !== undefined) sp.set("minDiscountedPrice", String(params.minDiscountedPrice));
+  if (params?.maxDiscountedPrice !== undefined) sp.set("maxDiscountedPrice", String(params.maxDiscountedPrice));
+  if (params?.stockStatus !== undefined) sp.set("stockStatus", String(params.stockStatus));
+  if (params?.stockAssort !== undefined) sp.set("stockAssort", String(params.stockAssort));
+  if (params?.latest !== undefined) sp.set("latest", String(params.latest));
+  if (params?.page !== undefined) sp.set("page", String(params.page));
+  if (params?.limit !== undefined) sp.set("limit", String(params.limit));
+
+  const query = sp.toString() ? `?${sp.toString()}` : "";
+  try {
+    return await getJson<ApiResponse<ApiProductItem[]>>(`/products${query}`);
+  } catch (err) {
+    console.error("[api] getProducts", err);
+    return {
+      statusCode: 500,
+      status: "error",
+      found: false,
+      count: 0,
+      totalCount: 0,
+      page: params?.page ?? 1,
+      limit: params?.limit ?? 10,
+      totalPages: 0,
+      data: [],
+      message: err instanceof Error ? err.message : "Failed to fetch products",
+    };
+  }
+}
+
+/** Convenience helper for fetching repair spare parts */
+export async function getSpareParts(opts?: {
+  brandSlug?: string;
+  categorySlug?: string;
+  page?: number;
+  limit?: number;
+}): Promise<ApiResponse<ApiProductItem[]>> {
+  return getProducts({
+    isSparePart: 1,
+    ...opts,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Product Variants API (/product-variants/{productUUID})
+// ---------------------------------------------------------------------------
+
+export type VariantQueryParams = {
+  isSpareParts?: 0 | 1;
+};
+
+export type ApiProductVariantItem = {
+  variantUuid: string;
+  variantName: string;
+  attributeGroup: string;
+  attribute: string;
+  mrpUnitSale: number;
+  retailUnitSale: number;
+  thumbnailUrl: string;
+  isActive: boolean;
+  isTba: boolean;
+  isEcd: boolean;
+  isPreOrder: boolean;
+  isFs: boolean;
+  isLs: boolean;
+};
+
+/** Get product variants by product UUID */
+export async function getProductVariants(
+  productUuid: string,
+  params?: VariantQueryParams,
+): Promise<ApiResponse<ApiProductVariantItem[]>> {
+  "use cache";
+  cacheLife("api");
+  cacheTag("product-variants", `variant-${productUuid}`);
+
+  const query = buildQueryString(params);
+  try {
+    return await getJson<ApiResponse<ApiProductVariantItem[]>>(`/product-variants/${encodeURIComponent(productUuid)}${query}`);
+  } catch (err) {
+    console.error("[api] getProductVariants", productUuid, err);
+    return {
+      statusCode: 500,
+      status: "error",
+      found: false,
+      count: 0,
+      data: [],
+      message: err instanceof Error ? err.message : `Failed to fetch variants for ${productUuid}`,
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Model and Brand Helpers for Category Pages
+// ---------------------------------------------------------------------------
+
+export type CategoryProductModel = {
+  uuid: string;
+  code: string;
+  name: string;
+  modelName: string;
+  slug: string;
+  price: number;
+  regularPrice: number;
+  image?: string;
+};
+
+export type CategoryBrand = {
+  slug: string;
+  name: string;
+  logo: string;
+  models: string[];
+  products?: CategoryProductModel[];
+};
+
 const cleanModel = (name: string) =>
   name
     .replace(/\s*[([]?\b(un)?official\b[)\]]?\s*$/i, "")
     .replace(/\s+/g, " ")
     .trim();
 
-// Where the spec sheet starts in a product name: CPU/GPU vendors, memory sizes,
-// screen sizes, "with …", brackets. Everything from there on is dropped.
-const SPEC_START =
-  /\s(?:intel|amd|ryzen|snapdragon|qualcomm|mediatek|dimensity|exynos|nvidia|geforce|rtx|core\s|with\s|\d+(?:\.\d+)?\s?(?:gb|tb|mah|hz)\b|\d+(?:\.\d+)?\s?(?:"|”|''|inch\b|-inch\b)|\d+(?:\.\d+)?\s?(?:ton|kg|ltr|litre|liter|l)\b|(?:non[- ]?)?inverter\b|split\b|window\b|cassette\b|air\s+(?:conditioner|purifier|cooler)\b|refrigerator\b|washing\s+machine\b|[([{]|-\s|–|,)/i;
-
-// Generic product-type words at the end of a name ("… Bluetooth Calling Smart Watch")
-const TYPE_SUFFIX =
-  /(?:\s+(?:bluetooth|calling|portable|wireless|smart|gaming|true|tws|noise|cancelling|earbuds|headphones?|speaker|watch|laptop|smartphone|mouse|keyboard))+$/i;
-
-// Product lines sold without the brand name in front ("Redmi Note 17", "iPhone 18 Pro"),
-// plus a few spelling mistakes seen in the catalogue → brand slug.
-const PREFIX_ALIASES: Record<string, string> = {
-  iphone: "apple",
-  ipad: "apple",
-  macbook: "apple",
-  airpods: "apple",
-  imac: "apple",
-  redmi: "xiaomi",
-  poco: "xiaomi",
-  mi: "xiaomi",
-  xioami: "xiaomi",
-  galaxy: "samsung",
-  pixel: "google",
-  moto: "motorola",
-  reno: "oppo",
-  powerbeats: "beats",
-  blekin: "belkin",
-  bekin: "belkin",
+export type CategoryRepair = {
+  slug: string;
+  name: string;
+  price: number;
+  time: string;
 };
 
-/** "Asus Zenbook 14 OLED UX3405M Intel Core Ultra 7 …" → "ASUS Zenbook 14 OLED UX3405M" */
-function shortModel(name: string, brandName: string, keepPrefix = false) {
-  const cut = name.search(SPEC_START);
-  let model = (cut > 0 ? name.slice(0, cut) : name).trim();
-  const stripped = model.replace(TYPE_SUFFIX, "").trim();
-  // keep the type words if removing them would leave only the brand
-  const prefixLength = keepPrefix ? name.split(" ")[0].length : brandName.length;
-  if (stripped.length > prefixLength + 1) model = stripped;
-  // use the brand's official spelling for the leading brand word(s)
-  if (!keepPrefix) model = brandName + model.slice(brandName.length);
-  return model.length > 60 ? model.slice(0, 60).replace(/\s+\S*$/, "") : model;
+/**
+ * Care brands from API (/categories/{slug}/brands?isCare=1).
+ * Directly returns brands without heavy prefetching of products.
+ */
+export async function getCategoryCareBrands(categorySlug: string): Promise<CategoryBrand[]> {
+  try {
+    // 1. Fetch category brands from dedicated endpoint (/categories/{slug}/brands?isCare=1)
+    const catBrandsRaw = await getCategoryBrandsBySlugRaw(categorySlug, { isCare: 1 });
+    const directBrands = (catBrandsRaw.data?.category?.[0]?.child ?? []).filter((b) => b.is_active);
+
+    if (directBrands.length > 0) {
+      return directBrands.map((b) => ({
+        slug: b.brand_slug,
+        name: b.brand_name,
+        logo: b.thumbnail_img,
+        models: [],
+      }));
+    }
+
+    // 2. Fallback to subCategory child if category child was empty
+    const subCatBrands = (catBrandsRaw.data?.subCategory?.[0]?.child ?? []).filter((b) => b.is_active);
+    if (subCatBrands.length > 0) {
+      return subCatBrands.map((b) => ({
+        slug: b.brand_slug,
+        name: b.brand_name,
+        logo: b.thumbnail_img,
+        models: [],
+      }));
+    }
+
+    // 3. Fallback to /categories/child?isCare=1 if /categories/{slug}/brands is empty
+    const categoriesWithChild = await getCategoriesWithChild({ isCare: 1 });
+    const matchedCategory = categoriesWithChild.find(
+      (c) => c.category_slug.toLowerCase() === categorySlug.toLowerCase(),
+    );
+
+    const children = (matchedCategory?.child ?? []).filter((ch) => ch.is_active);
+    if (children.length > 0) {
+      return children.map((ch) => ({
+        slug: ch.sub_category_slug,
+        name: ch.sub_category_name,
+        logo: ch.thumbnail_img,
+        models: [],
+      }));
+    }
+
+    return [];
+  } catch (err) {
+    console.error("[api] getCategoryCareBrands", err);
+    return [];
+  }
 }
 
 /**
- * Brands that actually have products in a category, most products first, each
- * with its model names. The API has no brand↔category link, so it is derived
- * from the category's product names (they start with the brand name).
+ * Real repair services and spare parts, filtered by category and brand from API (/products)
  */
-export async function getCategoryBrands(categorySlug: string): Promise<CategoryBrand[]> {
+export async function getCategoryRepairsFromApi(categorySlug: string, brandSlug?: string): Promise<CategoryRepair[]> {
   "use cache";
-  // cache lifetime is decided below: a full result is kept for a day, a partial one only briefly
-  cacheTag("brands", "categories", `category-brands-${categorySlug}`);
+  cacheLife("api");
+  cacheTag("repairs", `repairs-${categorySlug}`);
 
   try {
-    type Product = { productName: string };
-    const path = (page: number) => `/products?categorySlug=${encodeURIComponent(categorySlug)}&limit=100&page=${page}`;
-    // The API returns at most 100 products per page and slows down under bursts,
-    // so pages are fetched 3 at a time within a 25 s budget; whatever arrived in
-    // time is used (the cache retries the rest on the next refresh).
-    const deadline = Date.now() + 25_000;
-    const first = await getJson<ApiList<Product>>(path(1), { deadline });
-    const pages = Math.min(first.totalPages ?? 1, 20); // safety cap
-    const pageNumbers = Array.from({ length: pages - 1 }, (_, i) => i + 2);
-    let failed = 0;
-    const rest = await mapLimit(pageNumbers, 3, (p) =>
-      getJson<ApiList<Product>>(path(p), { deadline }).catch(() => {
-        failed++;
-        return { data: [] } as ApiList<Product>;
-      }),
-    );
-    if (failed) console.warn(`[api] ${categorySlug}: ${failed}/${pages} product pages skipped (slow API)`);
-    if (failed) cacheLife("api");
-    else cacheLife("days");
-    const names = [first, ...rest].flatMap((r) => r.data ?? []).map((p) => cleanModel(p.productName));
+    // 1. Try fetching spare parts products for this category and sub-category/brand
+    let spareRes = await getProducts({
+      categorySlug,
+      subCategorySlug: brandSlug,
+      isSparePart: 1,
+      limit: 50,
+    });
 
-    const brands = await getAllBrands();
-    // Longest names first so "Bang & Olufsen" wins over a shorter overlapping brand
-    const byLength = [...brands].sort((a, b) => b.brand_name.length - a.brand_name.length);
-    const found = new Map<string, { brand: (typeof brands)[number]; models: Map<string, string> }>();
-
-    for (const name of names) {
-      const lower = name.toLowerCase();
-      let brand = byLength.find((b) => {
-        const n = b.brand_name.toLowerCase();
-        return lower === n || lower.startsWith(`${n} `);
+    if (!spareRes.data?.length && brandSlug) {
+      spareRes = await getProducts({
+        categorySlug,
+        brandSlug,
+        isSparePart: 1,
+        limit: 50,
       });
-      let aliased = false;
-      if (!brand) {
-        const alias = PREFIX_ALIASES[lower.split(" ")[0]];
-        brand = alias ? brands.find((b) => b.brand_slug === alias) : undefined;
-        aliased = Boolean(brand);
-      }
-      if (!brand) continue;
-      const entry = found.get(brand.brand_slug) ?? { brand, models: new Map<string, string>() };
-      const model = shortModel(name, brand.brand_name, aliased);
-      // case-insensitive de-duplication, keep the first spelling seen
-      if (!entry.models.has(model.toLowerCase())) entry.models.set(model.toLowerCase(), model);
-      found.set(brand.brand_slug, entry);
     }
 
-    return [...found.values()]
-      .sort((a, b) => b.models.size - a.models.size)
-      .map(({ brand, models }) => ({
-        slug: brand.brand_slug,
-        name: brand.brand_name,
-        logo: brand.thumbnail_img,
-        models: [...models.values()].slice(0, 80),
+    const spareItems = spareRes.data ?? [];
+    if (spareItems.length > 0) {
+      return spareItems.map((p) => ({
+        slug: p.productSlug,
+        name: p.productName,
+        price: p.discountedPrice > 0 ? p.discountedPrice : p.regularPrice,
+        time: p.stockStatus === "In Stock" ? "Same Day" : "1–2 days",
       }));
+    }
+
+    // 2. If no spare parts found, fetch products for this category and sub-category/brand
+    let prodRes = await getProducts({
+      categorySlug,
+      subCategorySlug: brandSlug,
+      limit: 50,
+    });
+
+    if (!prodRes.data?.length && brandSlug) {
+      prodRes = await getProducts({
+        categorySlug,
+        brandSlug,
+        limit: 50,
+      });
+    }
+
+    const prodItems = prodRes.data ?? [];
+    if (prodItems.length > 0) {
+      return prodItems.map((p) => ({
+        slug: p.productSlug,
+        name: p.productName,
+        price: p.discountedPrice > 0 ? p.discountedPrice : p.regularPrice,
+        time: p.stockStatus === "In Stock" ? "Same Day" : "1–2 days",
+      }));
+    }
   } catch (err) {
-    console.error("[api] category brands", categorySlug, err);
-    cacheLife("api");
-    return [];
+    console.error("[api] getCategoryRepairsFromApi", err);
   }
+
+  return [];
+}
+
+/**
+ * Brands that have products in a category, strictly using the Care API (/brands?isCare=1).
+ */
+export async function getCategoryBrands(categorySlug: string): Promise<CategoryBrand[]> {
+  return getCategoryCareBrands(categorySlug);
 }

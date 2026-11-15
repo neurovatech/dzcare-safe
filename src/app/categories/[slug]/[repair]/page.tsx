@@ -1,20 +1,19 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import RepairDetail from "@/components/repair-detail/RepairDetail";
-import { getCategories, getCategory } from "@/lib/api";
-import { genericIncludes, getCategoryRepairs, getService, serviceIncludes } from "@/lib/data";
+import { getCategories, getCategory, getCategoryRepairsFromApi } from "@/lib/api";
+import { genericIncludes, getService, serviceIncludes } from "@/lib/data";
 import { formatTaka } from "@/lib/format";
 import { site } from "@/lib/site";
 
 export async function generateStaticParams() {
-  const cats = await getCategories();
-  const params = cats.flatMap((c) => getCategoryRepairs(c.slug).map((r) => ({ slug: c.slug, repair: r.slug })));
-  return params.length ? params : [{ slug: "laptop", repair: "screen-replacement" }];
+  return [{ slug: "laptop", repair: "hardware-service" }];
 }
 
 async function resolve(slug: string, repairSlug: string) {
-  const category = await getCategory(slug);
-  const repair = getCategoryRepairs(slug).find((r) => r.slug === repairSlug);
+  const category = await getCategory(slug, { isCare: 1 });
+  const apiRepairs = await getCategoryRepairsFromApi(slug);
+  const repair = apiRepairs.find((r) => r.slug === repairSlug);
   return category && repair ? { category, repair } : null;
 }
 
@@ -35,6 +34,7 @@ export default async function CategoryRepairPage({ params }: PageProps<"/categor
   const r = await resolve(slug, repair);
   if (!r) notFound();
   const { category, repair: rep } = r;
+  const apiRepairs = await getCategoryRepairsFromApi(slug);
   // reuse the phone-service copy when the repair is the same kind (screen, battery, …)
   const svc = getService(rep.slug);
   const path = `/categories/${slug}/${rep.slug}`;
@@ -77,7 +77,7 @@ export default async function CategoryRepairPage({ params }: PageProps<"/categor
         ]
       }
       url={`${site.url}${path}`}
-      related={getCategoryRepairs(slug)
+      related={apiRepairs
         .filter((x) => x.slug !== rep.slug)
         .map((x) => ({ href: `/categories/${slug}/${x.slug}`, label: x.name }))}
     />
