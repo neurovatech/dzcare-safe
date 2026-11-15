@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getCategories, getMarqueeBrands } from "@/lib/api";
 import { brands, features, getCategoryRepairs, services, stats, steps, testimonials } from "@/lib/data";
 import { formatTaka } from "@/lib/format";
+import CategoryDeviceGrid from "./CategoryDeviceGrid";
 import PriceEstimator from "./PriceEstimator";
 import { Container, SectionHeading } from "./ui";
 import { ArrowIcon, FeatureIcon, ServiceIcon, StarIcon } from "./Icons";
@@ -18,7 +19,7 @@ const featured = [
   {
     href: "/services/screen-replacement",
     tag: "Most popular",
-    title: "Cracked screen? Fixed in 45 minutes",
+    title: "Cracked screen",
     price: `Screen from ${formatTaka(Math.min(...brands.map((b) => b.prices["screen-replacement"] ?? Infinity)))}`,
     image: photos.crackedScreens,
     imageClass: "w-[58%]",
@@ -81,9 +82,11 @@ export function EstimatorSection({ initialBrand }: { initialBrand?: string }) {
   );
 }
 
-/** Device categories from the API, with their images. */
+/** Device categories from the API (/categories/child?isCare=1). */
 export async function CategoryGrid({ limit }: { limit?: number }) {
-  const categories = (await getCategories()).slice(0, limit);
+  // Call /categories/child?isCare=1 as requested: "Choose your device section a ae api call korba /categories/child?isCare=1"
+  const categories = await getCategories({ isCare: 1 });
+
   if (!categories.length) return null;
 
   return (
@@ -101,32 +104,7 @@ export async function CategoryGrid({ limit }: { limit?: number }) {
             </Link>
           )}
         </div>
-        <ul className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          {categories.map((c, i) => (
-            <li key={c.uuid} className="reveal">
-              <Link
-                href={`/categories/${c.slug}`}
-                className="spotlight card-lift group flex h-full flex-col items-center overflow-hidden rounded-3xl border border-black/[.06] bg-cream p-4 text-center sm:p-5"
-                style={delay(i, 40)}
-              >
-                <span className="relative block aspect-square w-full">
-                  <Image
-                    src={c.image}
-                    alt={`${c.name} repair`}
-                    width={150}
-                    height={150}
-                    className="h-full w-[70%] m-auto object-contain drop-shadow-xl transition duration-700 ease-out group-hover:-translate-y-2 group-hover:rotate-[-4deg] group-hover:scale-110"
-                  />
-                </span>
-                <span className="mt-3 text-base font-semibold text-ink">{c.name}</span>
-                <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-neutral-500 transition-colors group-hover:text-gold-dark">
-                  View repairs
-                  <ArrowIcon className="h-3 w-3 -translate-x-1 opacity-0 transition duration-300 group-hover:translate-x-0 group-hover:opacity-100" />
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <CategoryDeviceGrid categories={categories} limit={limit} />
       </Container>
     </section>
   );
@@ -157,7 +135,7 @@ export function ServicesGrid({ brandSlug }: { brandSlug?: string }) {
                     {f.tag}
                   </span>
                   <h3 className="relative z-10 mt-2 max-w-[12rem] text-2xl font-bold leading-tight">{f.title}</h3>
-                  <span className={`relative mt-3 text-sm font-semibold ${i === 1 ? "text-gold" : "text-gold-dark"}`}>{f.price}</span>
+                  {/* <span className={`relative mt-3 text-sm font-semibold ${i === 1 ? "text-gold" : "text-gold-dark"}`}>{f.price}</span> */}
                   <span className="relative z-10 mt-auto inline-flex w-fit items-center gap-2 rounded-full bg-gold px-4 py-2 text-sm font-semibold text-ink transition group-hover:gap-3">
                     Learn more <ArrowIcon />
                   </span>
@@ -172,7 +150,7 @@ export function ServicesGrid({ brandSlug }: { brandSlug?: string }) {
             ))}
           </ul>
         )}
-        <ul className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {/* <ul className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {services.map((s) => {
             const price = (brand ?? brands[0]).prices[s.slug];
             return (
@@ -198,7 +176,7 @@ export function ServicesGrid({ brandSlug }: { brandSlug?: string }) {
               </li>
             );
           })}
-        </ul>
+        </ul> */}
       </Container>
     </section>
   );
@@ -263,8 +241,8 @@ const statIcons = ["chip", "bolt", "shield", "search"] as const;
 
 export function StatsBand() {
   return (
-    <section className="bg-white py-14 sm:py-20">
-      <Container>
+    <section >
+      {/* <Container>
         <div className="reveal relative overflow-hidden rounded-[2rem] bg-ink shadow-2xl shadow-black/20">
           <Image
             src={photos.techGlasses}
@@ -298,7 +276,7 @@ export function StatsBand() {
             </dl>
           </div>
         </div>
-      </Container>
+      </Container> */}
     </section>
   );
 }
@@ -385,14 +363,14 @@ export function Process() {
               className="h-auto w-full transition duration-700 ease-out group-hover:scale-105"
             />
           </div>
-          <figcaption className="absolute -bottom-5 right-6 flex items-center gap-3 rounded-2xl bg-ink px-5 py-3 text-white shadow-xl">
+          {/* <figcaption className="absolute -bottom-5 right-6 flex items-center gap-3 rounded-2xl bg-ink px-5 py-3 text-white shadow-xl">
             <span className="text-2xl font-bold text-gold">45 min</span>
             <span className="text-xs leading-tight text-white/75">
               average
               <br />
               repair time
             </span>
-          </figcaption>
+          </figcaption> */}
         </figure>
 
         <div className="order-1 lg:order-2">

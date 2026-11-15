@@ -43,12 +43,12 @@ export const localBusinessLd = {
   geo: { "@type": "GeoCoordinates", latitude: site.geo.lat, longitude: site.geo.lng },
   hasMap: site.mapUrl,
   areaServed: { "@type": "City", name: "Dhaka" },
-  openingHoursSpecification: site.hours.map((h) => ({
-    "@type": "OpeningHoursSpecification",
-    dayOfWeek: dayMap[h.days] ?? [h.days],
-    opens: h.open,
-    closes: h.close,
-  })),
+  // openingHoursSpecification: site.hours.map((h) => ({
+  //   "@type": "OpeningHoursSpecification",
+  //   dayOfWeek: dayMap[h.days] ?? [h.days],
+  //   opens: h.open,
+  //   closes: h.close,
+  // })),
   sameAs: Object.values(site.social),
 };
 

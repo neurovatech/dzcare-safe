@@ -351,7 +351,6 @@ export const stats = [
   { value: "25,000+", label: "Phones repaired" },
   { value: "9+", label: "Years of experience" },
   { value: "4.9/5", label: "Customer rating" },
-  { value: "45 min", label: "Average repair time" },
 ];
 
 export type FeatureIcon = "search" | "chip" | "shield" | "bolt" | "lock" | "coin";
@@ -381,10 +380,10 @@ export const testimonials = [
 ];
 
 export const faqs = [
-  {
-    q: "How long does a phone repair take?",
-    a: "Most screen, battery and charging port repairs are done in 30–90 minutes while you wait. Board-level and water damage repairs usually take 1–3 days.",
-  },
+  // {
+  //   q: "How long does a phone repair take?",
+  //   a: "Most screen, battery and charging port repairs are done in 30–90 minutes while you wait. Board-level and water damage repairs usually take 1–3 days.",
+  // },
   {
     q: "Do you give a warranty on repairs?",
     a: "Yes. Every repair comes with a written warranty of up to 6 months on parts and workmanship, depending on the service.",
@@ -393,10 +392,10 @@ export const faqs = [
     q: "Is diagnosis really free?",
     a: "Yes. We diagnose your phone for free and tell you the exact price before starting. You decide whether to go ahead.",
   },
-  {
-    q: "Which brands do you repair?",
-    a: "We repair iPhone, Samsung, Xiaomi, Redmi, POCO, OPPO, vivo, realme, Google Pixel, OnePlus and most other Android brands.",
-  },
+  // {
+  //   q: "Which brands do you repair?",
+  //   a: "We repair iPhone, Samsung, Xiaomi, Redmi, POCO, OPPO, vivo, realme, Google Pixel, OnePlus and most other Android brands.",
+  // },
   {
     q: "Is my data safe?",
     a: "Absolutely. Most repairs don't touch your data at all, and our technicians never access your personal files. You can also remove your passcode-protected data before handing over.",

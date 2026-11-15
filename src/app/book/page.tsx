@@ -21,7 +21,7 @@ export default function BookPage({ searchParams }: PageProps<"/book">) {
     <>
       <PageHero
         crumbs={[{ name: "Book a Repair", path: "/book" }]}
-        title="Book your repair in 30 seconds"
+        title="Book your repair "
         text="Tell us what's wrong — we'll call you back with the exact price and the earliest slot. Walk-in or free pickup inside Dhaka."
       />
       <section className="bg-white py-12 sm:py-16">
@@ -43,7 +43,7 @@ export default function BookPage({ searchParams }: PageProps<"/book">) {
                   <PhoneIcon /> {site.phoneDisplay}
                 </TrackedLink>
                 <TrackedLink method="whatsapp" trackLabel="book-aside" href={whatsappUrl()} target="_blank" rel="noopener" className="flex h-12 items-center justify-center gap-2 rounded-full bg-[#15803d] font-semibold text-ink">
-                  <WhatsAppIcon /> WhatsApp us
+                   <span className="text-white flex gap-2 justify-center items-center"> <WhatsAppIcon /> WhatsApp us </span>
                 </TrackedLink>
               </div>
             </div>

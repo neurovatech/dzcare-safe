@@ -19,7 +19,7 @@ const collage: Record<string, string> = {
 };
 
 export default async function Hero() {
-  const categories = await getCategories();
+  const categories = await getCategories({ isCare: "all" });
   const pics = Object.keys(collage)
     .map((slug) => categories.find((c) => c.slug === slug))
     .filter((c): c is NonNullable<typeof c> => !!c);

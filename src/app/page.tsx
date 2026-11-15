@@ -151,7 +151,7 @@ export default function Home() {
               </p>
             </div>
 
-            <p className="mt-8 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">Popular repairs</p>
+            {/* <p className="mt-8 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">Popular repairs</p>
             <ul className="mt-3 flex flex-wrap gap-2">
               {[
                 ...brands.map((b) => ({ href: `/repair/${b.slug}`, label: `${b.name} repair` })),
@@ -167,7 +167,7 @@ export default function Home() {
                   </Link>
                 </li>
               ))}
-            </ul>
+            </ul> */}
           </div>
         </Container>
       </section>
