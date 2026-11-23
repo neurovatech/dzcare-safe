@@ -199,12 +199,16 @@ export default function CategoryRepairPicker({
 
   const go = (next: Step) => {
     setStep(next);
-    requestAnimationFrame(() => {
+    // Scroll after state update — use a small delay so the new step renders first
+    setTimeout(() => {
       const el = top.current;
-      if (el && el.getBoundingClientRect().top < 0) {
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      // Only scroll if the top of the picker is off-screen
+      if (rect.top < 0 || rect.top > 120) {
         el.scrollIntoView({ behavior: "smooth", block: "start" });
       }
-    });
+    }, 100);
   };
 
   const pickBrand = (slug: string) => {
@@ -344,6 +348,7 @@ export default function CategoryRepairPicker({
                     <button
                       type="button"
                       onClick={() => pickBrand(b.slug)}
+                      onTouchEnd={(e) => { e.preventDefault(); pickBrand(b.slug); }}
                       aria-pressed={active}
                       className={`group relative flex h-full w-full flex-col items-center gap-2 rounded-2xl border bg-white p-4 transition duration-300 hover:-translate-y-1 hover:border-gold hover:shadow-xl hover:shadow-gold/20 ${
                         active ? "border-gold ring-2 ring-gold" : "border-black/[.07]"
@@ -450,6 +455,7 @@ export default function CategoryRepairPicker({
                       <button
                         type="button"
                         onClick={() => pickProduct(p)}
+                        onTouchEnd={(e) => { e.preventDefault(); pickProduct(p); }}
                         className="group flex h-full w-full flex-col justify-between rounded-2xl border border-black/[.07] bg-white p-4 text-left transition duration-300 hover:-translate-y-1 hover:border-gold hover:shadow-xl hover:shadow-gold/20"
                       >
                         <div>
@@ -528,7 +534,7 @@ export default function CategoryRepairPicker({
               </div>
             )}
 
-            <StepNav onBack={() => go(1)} backLabel="Change brand" />
+            <StepNav onBack={() => go(1)} backLabel="Change Brand" />
           </section>
         )}
 
@@ -680,21 +686,50 @@ export default function CategoryRepairPicker({
                 })}
               </ul>
             ) : (
-              <div className="mt-6 rounded-3xl border border-black/[.08] bg-cream/40 p-10 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm border border-black/[.05] text-neutral-400">
-                  <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                  </svg>
+              <div className="mt-6 rounded-3xl border border-black/[.08] bg-cream/40 p-6 sm:p-8">
+                {/* Example preview */}
+                <div className="mb-5 flex items-center gap-2">
+                  <span className="rounded-full bg-gold/20 px-2.5 py-0.5 text-xs font-semibold text-gold-dark">Example</span>
+                  <span className="text-xs text-neutral-400">This is how repair options appear when available</span>
                 </div>
-                <h4 className="mt-4 text-lg font-bold text-ink">No data found</h4>
-                <p className="mt-1.5 text-sm text-neutral-500 max-w-md mx-auto">
-                  No spare parts or repair options found for {selectedProduct.productName}.
-                </p>
-                <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                <div className="pointer-events-none select-none opacity-50 mb-6">
+                  <div className="flex items-start gap-4 rounded-2xl border border-black/[.07] bg-white p-4">
+                    <div className="grid h-20 w-20 shrink-0 place-items-center rounded-xl bg-cream">
+                      <svg className="h-10 w-10 text-neutral-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                        <rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/>
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="h-4 w-40 rounded bg-neutral-200" />
+                      <div className="mt-2 flex gap-2">
+                        <div className="h-5 w-16 rounded-full bg-gold/20" />
+                        <div className="h-5 w-12 rounded-full bg-emerald-100" />
+                      </div>
+                      <div className="mt-3 flex items-center justify-between border-t border-black/[.05] pt-3">
+                        <div>
+                          <div className="h-3 w-16 rounded bg-neutral-200" />
+                          <div className="mt-1 h-6 w-24 rounded bg-neutral-200" />
+                        </div>
+                        <div className="h-9 w-24 rounded-full bg-ink/10" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-black/[.06] mb-6" />
+
+                {/* Message */}
+                <div className="text-center">
+                  <h4 className="text-base font-bold text-ink">No options found</h4>
+                  <p className="mt-1.5 text-sm text-neutral-500 max-w-xs mx-auto">
+                    No spare parts or repair options are listed for{" "}
+                    <span className="font-medium text-ink">{selectedProduct.productName}</span> yet.
+                  </p>
                   <button
                     type="button"
                     onClick={() => go(2)}
-                    className="inline-flex items-center gap-2 rounded-full bg-gold px-5 py-2.5 text-xs font-bold text-ink shadow-sm hover:bg-gold/90 transition"
+                    className="mt-5 inline-flex items-center gap-2 rounded-full bg-gold px-5 py-2.5 text-xs font-bold text-ink shadow-sm hover:bg-gold/90 transition"
                   >
                     <ArrowIcon className="rotate-180 h-3.5 w-3.5" /> Choose another model
                   </button>
@@ -702,7 +737,7 @@ export default function CategoryRepairPicker({
               </div>
             )}
 
-            <StepNav onBack={() => go(2)} backLabel="Change model" />
+            <StepNav onBack={() => go(2)} backLabel="Change Model" />
           </section>
         )}
       </div>
@@ -752,9 +787,9 @@ function StepNav({
       <button
         type="button"
         onClick={onBack}
-        className="inline-flex items-center gap-2 text-sm font-semibold text-ink transition hover:text-gold-dark"
+        className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-semibold text-ink transition hover:text-gold-dark"
       >
-        <ArrowIcon className="rotate-180" /> {backLabel}
+        <ArrowIcon className="rotate-180 h-3.5 w-3.5 shrink-0" /> {backLabel}
       </button>
       {onSkip && (
         <button
